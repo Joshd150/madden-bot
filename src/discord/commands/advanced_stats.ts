@@ -13,27 +13,27 @@ async function handleSalaryCap(client: DiscordClient, token: string, leagueId: s
   try {
     const teams = await MaddenDB.getLatestTeams(leagueId);
     const standings = await MaddenDB.getLatestStandings(leagueId);
-    
+
     let teamsToShow = teams.getLatestTeams();
     if (teamName) {
-      teamsToShow = teamsToShow.filter(team => 
+      teamsToShow = teamsToShow.filter(team =>
         team.displayName.toLowerCase().includes(teamName.toLowerCase()) ||
         team.cityName.toLowerCase().includes(teamName.toLowerCase()) ||
         team.abbrName.toLowerCase().includes(teamName.toLowerCase())
       );
     }
-    
+
     if (teamsToShow.length === 0) {
       await client.editOriginalInteraction(token, {
         embeds: [EmbedBuilder.error("Team Not Found", `No team found matching "${teamName}"`).build()]
       });
       return;
     }
-    
-    const embed = EmbedBuilder.madden("💰 Salary Cap Information", 
+
+    const embed = EmbedBuilder.madden("💰 Salary Cap Information",
       teamName ? `Salary cap details for ${teamsToShow[0].displayName}` : "League-wide salary cap overview"
     );
-    
+
     teamsToShow.slice(0, 10).forEach(team => {
       const standing = standings.find(s => s.teamId === team.teamId);
       if (standing) {
@@ -41,7 +41,7 @@ async function handleSalaryCap(client: DiscordClient, token: string, leagueId: s
         const capAvailable = standing.capAvailable;
         const totalCap = capUsed + capAvailable;
         const capPercentage = capUsed / totalCap;
-        
+
         embed.addField(
           `${team.displayName}`,
           `**Used:** ${formatCurrency(capUsed)} (${formatPercentage(capPercentage)})\n` +
@@ -52,11 +52,11 @@ async function handleSalaryCap(client: DiscordClient, token: string, leagueId: s
         );
       }
     });
-    
+
     await client.editOriginalInteraction(token, {
       embeds: [embed.build()]
     });
-    
+
   } catch (error) {
     await client.editOriginalInteraction(token, {
       embeds: [EmbedBuilder.error("Salary Cap Error", `Failed to retrieve salary cap data: ${error}`).build()]
@@ -68,12 +68,11 @@ async function handleLeagueLeaders(client: DiscordClient, token: string, leagueI
   try {
     const players = await MaddenDB.getLatestPlayers(leagueId);
     const teams = await MaddenDB.getLatestTeams(leagueId);
-    
-    // Get detailed stats for top players based on category
+
     let sortedPlayers: Player[] = [];
     let statTitle = "";
     let statFormatter = (value: number) => value.toString();
-    
+
     switch (statCategory.toLowerCase()) {
       case "overall":
         sortedPlayers = players.sort((a, b) => b.playerBestOvr - a.playerBestOvr);
@@ -102,15 +101,15 @@ async function handleLeagueLeaders(client: DiscordClient, token: string, leagueI
         });
         return;
     }
-    
-    const embed = EmbedBuilder.madden(`🏆 League Leaders - ${statTitle}`, 
+
+    const embed = EmbedBuilder.madden(`🏆 League Leaders - ${statTitle}`,
       `Top 10 players by ${statTitle.toLowerCase()}`
     );
-    
+
     sortedPlayers.slice(0, 10).forEach((player, index) => {
       const team = teams.getTeamForId(player.teamId);
       let statValue: number;
-      
+
       switch (statCategory.toLowerCase()) {
         case "overall":
           statValue = player.playerBestOvr;
@@ -130,9 +129,9 @@ async function handleLeagueLeaders(client: DiscordClient, token: string, leagueI
         default:
           statValue = 0;
       }
-      
+
       const medal = index < 3 ? ["🥇", "🥈", "🥉"][index] : `${index + 1}.`;
-      
+
       embed.addField(
         `${medal} ${player.firstName} ${player.lastName}`,
         `**${player.position}** - ${team.displayName}\n` +
@@ -140,7 +139,7 @@ async function handleLeagueLeaders(client: DiscordClient, token: string, leagueI
         true
       );
     });
-    
+
     const buttons = new ActionRowBuilder()
       .addComponents(
         ButtonBuilder.secondary("Overall", `league_leaders_overall_${leagueId}`).build(),
@@ -148,12 +147,12 @@ async function handleLeagueLeaders(client: DiscordClient, token: string, leagueI
         ButtonBuilder.secondary("Strength", `league_leaders_strength_${leagueId}`).build(),
         ButtonBuilder.secondary("Salary", `league_leaders_salary_${leagueId}`).build()
       );
-    
+
     await client.editOriginalInteraction(token, {
       embeds: [embed.build()],
       components: [buttons.build()]
     });
-    
+
   } catch (error) {
     await client.editOriginalInteraction(token, {
       embeds: [EmbedBuilder.error("League Leaders Error", `Failed to retrieve league leaders: ${error}`).build()]
@@ -161,26 +160,32 @@ async function handleLeagueLeaders(client: DiscordClient, token: string, leagueI
   }
 }
 
-async function handleFreeAgents(client: DiscordClient, token: string, leagueId: string, position?: string, limit: number = 20) {
+async function handleFreeAgents(
+  client: DiscordClient,
+  token: string,
+  leagueId: string,
+  position?: string,
+  limit: number = 20
+) {
   try {
-    const freeAgents = await MaddenDB.getPlayers(leagueId, { 
+    const freeAgents = await MaddenDB.getPlayers(leagueId, {
       teamId: 0,
-      position: position 
+      position: position
     }, limit);
-    
+
     if (freeAgents.length === 0) {
       await client.editOriginalInteraction(token, {
-        embeds: [EmbedBuilder.warning("No Free Agents", 
+        embeds: [EmbedBuilder.warning("No Free Agents",
           position ? `No free agents found at ${position} position` : "No free agents available"
         ).build()]
       });
       return;
     }
-    
-    const embed = EmbedBuilder.madden("🆓 Free Agents", 
+
+    const embed = EmbedBuilder.madden("🆓 Free Agents",
       position ? `Available ${position} players` : "Available free agents"
     );
-    
+
     freeAgents.slice(0, 15).forEach((player, index) => {
       embed.addField(
         `${player.firstName} ${player.lastName} (${player.position})`,
@@ -190,11 +195,11 @@ async function handleFreeAgents(client: DiscordClient, token: string, leagueId: 
         true
       );
     });
-    
+
     if (freeAgents.length > 15) {
       embed.setFooter(`Showing 15 of ${freeAgents.length} free agents`);
     }
-    
+
     // Add position filter buttons
     const positionButtons = new ActionRowBuilder()
       .addComponents(
@@ -203,12 +208,12 @@ async function handleFreeAgents(client: DiscordClient, token: string, leagueId: 
         ButtonBuilder.secondary("WR", `free_agents_WR_${leagueId}`).build(),
         ButtonBuilder.secondary("All", `free_agents_all_${leagueId}`).build()
       );
-    
+
     await client.editOriginalInteraction(token, {
       embeds: [embed.build()],
       components: [positionButtons.build()]
     });
-    
+
   } catch (error) {
     await client.editOriginalInteraction(token, {
       embeds: [EmbedBuilder.error("Free Agents Error", `Failed to retrieve free agents: ${error}`).build()]
@@ -219,48 +224,57 @@ async function handleFreeAgents(client: DiscordClient, token: string, leagueId: 
 export default {
   async handleCommand(command: Command, client: DiscordClient, db: Firestore, ctx: ParameterizedContext) {
     const { guild_id, token } = command;
-    
+
     if (!command.data.options) {
       throw new Error("Advanced stats command not configured properly");
     }
-    
+
     const doc = await db.collection("league_settings").doc(guild_id).get();
     const leagueSettings = doc.exists ? doc.data() as LeagueSettings : {} as LeagueSettings;
-    
+
     if (!leagueSettings?.commands?.madden_league?.league_id) {
       throw new Error("No Madden league linked. Setup Snallabot with your Madden league first.");
     }
-    
+
     const leagueId = leagueSettings.commands.madden_league.league_id;
     const subCommand = command.data.options[0] as APIApplicationCommandInteractionDataSubcommandOption;
     const subCommandName = subCommand.name;
-    
+
     respond(ctx, deferMessage());
-    
+
     switch (subCommandName) {
-      case "salary-cap":
+      case "salary-cap": {
         const teamName = (subCommand.options?.[0] as APIApplicationCommandInteractionDataStringOption)?.value;
         await handleSalaryCap(client, token, leagueId, teamName);
         break;
-        
-      case "league-leaders":
+      }
+      case "league-leaders": {
         const statCategory = (subCommand.options?.[0] as APIApplicationCommandInteractionDataStringOption)?.value || "overall";
         await handleLeagueLeaders(client, token, leagueId, statCategory);
         break;
-        
-      case "free-agents":
+      }
+      case "free-agents": {
         const position = (subCommand.options?.[0] as APIApplicationCommandInteractionDataStringOption)?.value;
-        const limit = (subCommand.options?.[1] as APIApplicationCommandInteractionDataIntegerOption)?.value || 20;
+        let limitRaw = (subCommand.options?.[1] as APIApplicationCommandInteractionDataIntegerOption)?.value;
+        let limit: number = 20;
+
+        // --- Robustly ensure limit is a number ---
+        if (typeof limitRaw === "string") {
+          const parsed = parseInt(limitRaw, 10);
+          limit = !isNaN(parsed) ? parsed : 20;
+        } else if (typeof limitRaw === "number") {
+          limit = limitRaw;
+        }
         await handleFreeAgents(client, token, leagueId, position, limit);
         break;
-        
+      }
       default:
         await client.editOriginalInteraction(token, {
           embeds: [EmbedBuilder.error("Unknown Command", `Unknown subcommand: ${subCommandName}`).build()]
         });
     }
   },
-  
+
   commandDefinition(): RESTPostAPIApplicationCommandsJSONBody {
     return {
       name: "advanced-stats",

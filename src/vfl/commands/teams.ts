@@ -2,21 +2,24 @@ import { ParameterizedContext } from "koa"
 import { CommandHandler, Command } from "../../discord/commands_handler"
 import { respond, createMessageResponse, DiscordClient, deferMessage } from "../../discord/discord_utils"
 import { APIApplicationCommandInteractionDataStringOption, APIApplicationCommandInteractionDataSubcommandOption, ApplicationCommandOptionType, ApplicationCommandType, RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v10"
-import { Firestore } from "firebase-admin/firestore"
+import { Firestore, Query } from "firebase-admin/firestore"
 import { VFLEmbedBuilder } from "../embeds/embed_builder"
 import db from "../../db/firebase"
 
 /**
- * VFL Manager Teams Command - Your complete team information center!
- * 
- * This command is like having a team media guide at your fingertips. Users can
- * view detailed team information, current rosters, team statistics, and recent
- * performance. It's perfect for getting to know the teams in your league or
- * checking up on your favorite squad.
- * 
- * The beauty is that all this data comes from the same Firestore database that
- * powers our web dashboard, so everything stays perfectly in sync.
+ * Helper for formatting Firestore Timestamp or JS Date
  */
+function toDateString(date: any): string {
+  if (date instanceof Date) return date.toLocaleDateString();
+  if (date && typeof date.toDate === "function") return date.toDate().toLocaleDateString();
+  return "Unknown";
+}
+
+function getTime(date: any): number {
+  if (date instanceof Date) return date.getTime();
+  if (date && typeof date.toDate === "function") return date.toDate().getTime();
+  return 0;
+}
 
 // Define our team data structure
 interface TeamData {
@@ -172,11 +175,9 @@ export default {
 
 /**
  * Shows a complete list of all teams in the league
- * Great for getting an overview of who's playing this season
  */
 async function handleTeamsList(client: DiscordClient, token: string, guildId: string) {
   try {
-    // Get all teams from our database
     const teamsSnapshot = await db.collection('vfl_teams')
       .orderBy('conference')
       .orderBy('division')
@@ -249,7 +250,6 @@ async function handleTeamsList(client: DiscordClient, token: string, guildId: st
 
 /**
  * Shows detailed information about a specific team
- * This is like opening a team's Wikipedia page - comprehensive and informative
  */
 async function handleTeamInfo(client: DiscordClient, token: string, guildId: string, subCommand: any) {
   const teamName = (subCommand.options?.find((opt: any) => opt.name === 'team_name') as APIApplicationCommandInteractionDataStringOption)?.value;
@@ -269,6 +269,7 @@ async function handleTeamInfo(client: DiscordClient, token: string, guildId: str
       .limit(1)
       .get();
 
+    let teamDoc;
     if (teamsSnapshot.empty) {
       // Try searching by city name as well
       const citySnapshot = await db.collection('vfl_teams')
@@ -285,10 +286,13 @@ async function handleTeamInfo(client: DiscordClient, token: string, guildId: str
           ).build()]
         });
         return;
+      } else {
+        teamDoc = citySnapshot.docs[0];
       }
+    } else {
+      teamDoc = teamsSnapshot.docs[0];
     }
 
-    const teamDoc = teamsSnapshot.empty ? teamsSnapshot.docs[0] : teamsSnapshot.docs[0];
     const team = teamDoc.data() as TeamData;
 
     // Get recent games for this team
@@ -312,7 +316,7 @@ async function handleTeamInfo(client: DiscordClient, token: string, guildId: str
 
     // Sort by date and take the most recent
     const recentGames = allRecentGames
-      .sort((a: any, b: any) => b.gameDate.toDate().getTime() - a.gameDate.toDate().getTime())
+      .sort((a: any, b: any) => getTime(b.gameDate) - getTime(a.gameDate))
       .slice(0, 5);
 
     // Create the comprehensive team embed
@@ -359,7 +363,6 @@ async function handleTeamInfo(client: DiscordClient, token: string, guildId: str
 
 /**
  * Shows a team's current roster
- * Perfect for checking out who's on your favorite team
  */
 async function handleTeamRoster(client: DiscordClient, token: string, guildId: string, subCommand: any) {
   const teamName = (subCommand.options?.find((opt: any) => opt.name === 'team_name') as APIApplicationCommandInteractionDataStringOption)?.value;
@@ -477,7 +480,6 @@ async function handleTeamRoster(client: DiscordClient, token: string, guildId: s
 
 /**
  * Shows detailed team statistics
- * For the stat nerds who want to dive deep into the numbers
  */
 async function handleTeamStats(client: DiscordClient, token: string, guildId: string, subCommand: any) {
   const teamName = (subCommand.options?.find((opt: any) => opt.name === 'team_name') as APIApplicationCommandInteractionDataStringOption)?.value;
@@ -575,15 +577,12 @@ async function handleTeamStats(client: DiscordClient, token: string, guildId: st
 
 /**
  * Shows league standings
- * The classic standings table that every sports fan loves to check
  */
 async function handleStandings(client: DiscordClient, token: string, guildId: string, subCommand: any) {
   const conference = (subCommand.options?.find((opt: any) => opt.name === 'conference') as APIApplicationCommandInteractionDataStringOption)?.value;
   
   try {
-    let query = db.collection('vfl_teams');
-    
-    // Filter by conference if specified
+    let query: Query = db.collection('vfl_teams');
     if (conference) {
       query = query.where('conference', '==', conference);
     }

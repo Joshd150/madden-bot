@@ -6,18 +6,18 @@ import { Firestore } from "firebase-admin/firestore"
 import { VFLEmbedBuilder } from "../embeds/embed_builder"
 import db from "../../db/firebase"
 
-/**
- * VFL Manager Trades Command - The heart of our trading system!
- * 
- * This command handles everything related to trades in our league. Think of it as
- * the ESPN trade tracker, but for our VFL community. Users can view recent trades,
- * search for specific team or player trades, and admins can add new trades that
- * automatically get posted to the trades channel.
- * 
- * The beauty of this system is that it integrates seamlessly with our existing
- * Firestore database, so all trade data is consistent between the Discord bot
- * and our web dashboard.
- */
+// === Helper Functions ===
+function toDateString(date: any): string {
+  if (date instanceof Date) return date.toLocaleDateString();
+  if (date && typeof date.toDate === "function") return date.toDate().toLocaleDateString();
+  return "Unknown";
+}
+
+function getTime(date: any): number {
+  if (date instanceof Date) return date.getTime();
+  if (date && typeof date.toDate === "function") return date.toDate().getTime();
+  return 0;
+}
 
 // Define the structure of our trade data
 interface TradeData {
@@ -38,7 +38,7 @@ interface TradeData {
     fromTeam: string;
     toTeam: string;
   }>;
-  tradeDate: Date;
+  tradeDate: any; // allow both Date and Firestore Timestamp
   description?: string;
   analysis?: string;
   postedToDiscord: boolean;
@@ -169,8 +169,6 @@ export default {
  */
 async function handleRecentTrades(client: DiscordClient, token: string, guildId: string) {
   try {
-    // Query our Firestore database for recent trades
-    // We're using the same database structure as the existing bot
     const tradesSnapshot = await db.collection('vfl_trades')
       .orderBy('tradeDate', 'desc')
       .limit(5)
@@ -186,15 +184,11 @@ async function handleRecentTrades(client: DiscordClient, token: string, guildId:
       return;
     }
 
-    // Create beautiful embeds for each trade
     const embeds = [];
     tradesSnapshot.docs.forEach(doc => {
       const trade = doc.data() as TradeData;
       const embed = VFLEmbedBuilder.createTradeEmbed(trade);
-      
-      // Add the trade date for context
-      embed.addField('📅 Trade Date', trade.tradeDate.toDate().toLocaleDateString(), true);
-      
+      embed.addField('📅 Trade Date', toDateString(trade.tradeDate), true);
       embeds.push(embed.build());
     });
 
@@ -213,7 +207,6 @@ async function handleRecentTrades(client: DiscordClient, token: string, guildId:
 
 /**
  * Shows all trades involving a specific team
- * Great for seeing a team's trading history and activity
  */
 async function handleTeamTrades(client: DiscordClient, token: string, guildId: string, subCommand: any) {
   const teamName = (subCommand.options?.[0] as APIApplicationCommandInteractionDataStringOption)?.value;
@@ -226,7 +219,6 @@ async function handleTeamTrades(client: DiscordClient, token: string, guildId: s
   }
 
   try {
-    // Search for trades involving this team (either as sender or receiver)
     const tradesSnapshot = await db.collection('vfl_trades')
       .where('fromTeamName', '==', teamName)
       .orderBy('tradeDate', 'desc')
@@ -239,7 +231,7 @@ async function handleTeamTrades(client: DiscordClient, token: string, guildId: s
       .limit(10)
       .get();
 
-    // Combine and deduplicate the results
+    // Combine and deduplicate
     const allTrades = new Map();
     [...tradesSnapshot.docs, ...receivingTradesSnapshot.docs].forEach(doc => {
       allTrades.set(doc.id, doc.data());
@@ -255,7 +247,6 @@ async function handleTeamTrades(client: DiscordClient, token: string, guildId: s
       return;
     }
 
-    // Create a summary embed showing all the team's trades
     const embed = VFLEmbedBuilder.createInfoEmbed(
       `${teamName} Trade History`,
       `Found ${allTrades.size} recent trades involving ${teamName}`
@@ -263,13 +254,12 @@ async function handleTeamTrades(client: DiscordClient, token: string, guildId: s
 
     let tradesList = '';
     Array.from(allTrades.values())
-      .sort((a: any, b: any) => b.tradeDate.toDate().getTime() - a.tradeDate.toDate().getTime())
+      .sort((a: any, b: any) => getTime(b.tradeDate) - getTime(a.tradeDate))
       .slice(0, 10)
       .forEach((trade: any) => {
-        const date = trade.tradeDate.toDate().toLocaleDateString();
+        const date = toDateString(trade.tradeDate);
         const otherTeam = trade.fromTeamName === teamName ? trade.toTeamName : trade.fromTeamName;
         const direction = trade.fromTeamName === teamName ? 'to' : 'from';
-        
         tradesList += `**${date}** - Trade ${direction} ${otherTeam}\n`;
       });
 
@@ -292,7 +282,6 @@ async function handleTeamTrades(client: DiscordClient, token: string, guildId: s
 
 /**
  * Shows all trades involving a specific player
- * Perfect for tracking a player's journey through different teams
  */
 async function handlePlayerTrades(client: DiscordClient, token: string, guildId: string, subCommand: any) {
   const playerName = (subCommand.options?.[0] as APIApplicationCommandInteractionDataStringOption)?.value;
@@ -305,8 +294,6 @@ async function handlePlayerTrades(client: DiscordClient, token: string, guildId:
   }
 
   try {
-    // Search through all trades for ones involving this player
-    // This is a bit more complex since player data is stored as an array
     const tradesSnapshot = await db.collection('vfl_trades')
       .orderBy('tradeDate', 'desc')
       .get();
@@ -317,7 +304,6 @@ async function handlePlayerTrades(client: DiscordClient, token: string, guildId:
       const hasPlayer = trade.players.some(player => 
         player.name.toLowerCase().includes(playerName.toLowerCase())
       );
-      
       if (hasPlayer) {
         playerTrades.push(trade);
       }
@@ -333,18 +319,16 @@ async function handlePlayerTrades(client: DiscordClient, token: string, guildId:
       return;
     }
 
-    // Create a player trade history embed
     const embed = VFLEmbedBuilder.createPlayerEmbed({
       name: playerName,
-      position: 'Various', // We don't know the exact player details
+      position: 'Various',
       team: null
     });
-
     embed.setTitle(`👤 **${playerName} Trade History**`);
 
     let tradesText = '';
     playerTrades.slice(0, 10).forEach(trade => {
-      const date = trade.tradeDate.toDate().toLocaleDateString();
+      const date = toDateString(trade.tradeDate);
       tradesText += `**${date}** - ${trade.fromTeamName} → ${trade.toTeamName}\n`;
     });
 
@@ -367,11 +351,8 @@ async function handlePlayerTrades(client: DiscordClient, token: string, guildId:
 
 /**
  * Adds a new trade to the system (Admin only)
- * This is where the magic happens - new trades get added and automatically posted!
  */
 async function handleAddTrade(client: DiscordClient, token: string, guildId: string, subCommand: any, command: Command) {
-  // First, check if the user has permission to add trades
-  // In a real implementation, you'd check for admin roles
   const hasPermission = true; // TODO: Implement proper permission checking
   
   if (!hasPermission) {
@@ -384,7 +365,6 @@ async function handleAddTrade(client: DiscordClient, token: string, guildId: str
     return;
   }
 
-  // Extract the trade information from the command
   const fromTeam = subCommand.options?.find((opt: any) => opt.name === 'from_team')?.value;
   const toTeam = subCommand.options?.find((opt: any) => opt.name === 'to_team')?.value;
   const playersString = subCommand.options?.find((opt: any) => opt.name === 'players')?.value;
@@ -401,8 +381,6 @@ async function handleAddTrade(client: DiscordClient, token: string, guildId: str
   }
 
   try {
-    // Parse the players string into individual player objects
-    // Expected format: "Player Name (Position), Player Name (Position)"
     const players = playersString.split(',').map((playerStr: string) => {
       const trimmed = playerStr.trim();
       const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
@@ -424,9 +402,8 @@ async function handleAddTrade(client: DiscordClient, token: string, guildId: str
       }
     });
 
-    // Create the trade object
     const tradeData: TradeData = {
-      fromTeamId: fromTeam.toLowerCase().replace(/\s+/g, '_'), // Simple ID generation
+      fromTeamId: fromTeam.toLowerCase().replace(/\s+/g, '_'),
       toTeamId: toTeam.toLowerCase().replace(/\s+/g, '_'),
       fromTeamName: fromTeam,
       toTeamName: toTeam,
@@ -436,13 +413,9 @@ async function handleAddTrade(client: DiscordClient, token: string, guildId: str
       postedToDiscord: false
     };
 
-    // Save the trade to Firestore
     const docRef = await db.collection('vfl_trades').add(tradeData);
-    
-    // Update the trade with its ID
     await docRef.update({ id: docRef.id });
 
-    // Create a success embed
     const successEmbed = VFLEmbedBuilder.createSuccessEmbed(
       'Trade Added Successfully',
       `Trade between ${fromTeam} and ${toTeam} has been recorded and will be posted to the trades channel.`
@@ -452,8 +425,6 @@ async function handleAddTrade(client: DiscordClient, token: string, guildId: str
       embeds: [successEmbed.build()]
     });
 
-    // TODO: Trigger the automated trade posting system
-    // This would post the trade to the designated trades channel
     await postTradeToChannel(client, guildId, { ...tradeData, id: docRef.id });
 
   } catch (error) {
@@ -469,11 +440,9 @@ async function handleAddTrade(client: DiscordClient, token: string, guildId: str
 
 /**
  * Posts a trade to the designated trades channel
- * This is the automated system that keeps everyone informed of new trades
  */
 async function postTradeToChannel(client: DiscordClient, guildId: string, trade: TradeData) {
   try {
-    // Get the server configuration to find the trades channel
     const configDoc = await db.collection('vfl_config').doc(guildId).get();
     
     if (!configDoc.exists) {
@@ -489,23 +458,18 @@ async function postTradeToChannel(client: DiscordClient, guildId: string, trade:
       return;
     }
 
-    // Create the trade embed for posting
     const embed = VFLEmbedBuilder.createTradeEmbed(trade);
-    
-    // Add additional context for the channel post
-    embed.addField('📅 Trade Date', trade.tradeDate.toLocaleDateString(), true);
+    embed.addField('📅 Trade Date', toDateString(trade.tradeDate), true);
     if (trade.description) {
       embed.addField('📝 Details', trade.description, false);
     }
 
-    // Post to the trades channel
     const message = await client.createMessage(
       { id: tradesChannelId, id_type: 'CHANNEL' as any },
       '',
       []
     );
 
-    // Update the trade record to mark it as posted
     if (trade.id) {
       await db.collection('vfl_trades').doc(trade.id).update({
         postedToDiscord: true,

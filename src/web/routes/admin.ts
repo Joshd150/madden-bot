@@ -6,14 +6,6 @@ import db from "../../db/firebase";
 
 /**
  * VFL Manager Admin Portal Routes - The command center for league management!
- * 
- * This is where league administrators can manage the entire VFL system from a
- * beautiful web interface. Think of it as the mission control for our Discord bot
- * and league operations.
- * 
- * The admin portal provides a user-friendly way to configure bot settings,
- * manage teams and players, view analytics, and control all aspects of the
- * league without needing to touch code or use Discord commands.
  */
 
 const router = new Router({ prefix: "/admin" });
@@ -25,11 +17,10 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme';
 
 /**
  * Authentication middleware - protects admin routes
- * Only authenticated administrators can access the admin portal
  */
 async function requireAuth(ctx: ParameterizedContext, next: Function) {
   const token = ctx.cookies.get('vfl_admin_token') || ctx.headers.authorization?.replace('Bearer ', '');
-  
+
   if (!token) {
     ctx.status = 401;
     ctx.body = { error: 'Authentication required' };
@@ -48,15 +39,13 @@ async function requireAuth(ctx: ParameterizedContext, next: Function) {
 
 /**
  * GET /admin
- * Serves the admin login page or redirects to dashboard if already authenticated
  */
 router.get("/", async (ctx) => {
   const token = ctx.cookies.get('vfl_admin_token');
-  
+
   if (token) {
     try {
       jwt.verify(token, JWT_SECRET);
-      // Already authenticated, redirect to dashboard
       ctx.redirect('/admin/dashboard');
       return;
     } catch (error) {
@@ -64,7 +53,6 @@ router.get("/", async (ctx) => {
     }
   }
 
-  // Serve the login page
   ctx.type = 'html';
   ctx.body = `
 <!DOCTYPE html>
@@ -109,12 +97,10 @@ router.get("/", async (ctx) => {
 
 /**
  * POST /admin/login
- * Handles admin authentication
  */
 router.post("/login", async (ctx) => {
   const { email, password } = ctx.request.body as any;
 
-  // Simple authentication - in production, you'd use a proper user management system
   if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
     const token = jwt.sign(
       { email, role: 'admin', loginTime: Date.now() },
@@ -122,7 +108,6 @@ router.post("/login", async (ctx) => {
       { expiresIn: '24h' }
     );
 
-    // Set secure cookie
     ctx.cookies.set('vfl_admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -139,7 +124,6 @@ router.post("/login", async (ctx) => {
 
 /**
  * GET /admin/dashboard
- * Serves the main admin dashboard
  */
 router.get("/dashboard", requireAuth, async (ctx) => {
   ctx.type = 'html';
@@ -194,11 +178,9 @@ router.get("/dashboard", requireAuth, async (ctx) => {
 
 /**
  * GET /admin/api/overview
- * Returns dashboard overview data
  */
 router.get("/api/overview", requireAuth, async (ctx) => {
   try {
-    // Get counts of various entities
     const [teamsSnapshot, playersSnapshot, tradesSnapshot, gamesSnapshot, configSnapshot] = await Promise.all([
       db.collection('vfl_teams').get(),
       db.collection('vfl_players').get(),
@@ -207,7 +189,6 @@ router.get("/api/overview", requireAuth, async (ctx) => {
       db.collection('vfl_config').get()
     ]);
 
-    // Get recent activity
     const recentTradesSnapshot = await db.collection('vfl_trades')
       .orderBy('tradeDate', 'desc')
       .limit(5)
@@ -240,7 +221,7 @@ router.get("/api/overview", requireAuth, async (ctx) => {
     };
 
     ctx.body = overview;
-    
+
   } catch (error) {
     console.error('Error fetching overview:', error);
     ctx.status = 500;
@@ -250,19 +231,18 @@ router.get("/api/overview", requireAuth, async (ctx) => {
 
 /**
  * GET /admin/api/bot-configs
- * Returns Discord server configurations
  */
 router.get("/api/bot-configs", requireAuth, async (ctx) => {
   try {
     const configsSnapshot = await db.collection('vfl_config').get();
-    
+
     const configs = configsSnapshot.docs.map(doc => ({
       guildId: doc.id,
       ...doc.data()
     }));
 
     ctx.body = configs;
-    
+
   } catch (error) {
     console.error('Error fetching bot configs:', error);
     ctx.status = 500;
@@ -272,16 +252,15 @@ router.get("/api/bot-configs", requireAuth, async (ctx) => {
 
 /**
  * PUT /admin/api/bot-configs/:guildId
- * Updates Discord server configuration
  */
 router.put("/api/bot-configs/:guildId", requireAuth, async (ctx) => {
   const { guildId } = ctx.params;
   const config = ctx.request.body as any;
-  
+
   try {
     await db.collection('vfl_config').doc(guildId).set(config, { merge: true });
     ctx.body = { success: true, message: 'Configuration updated successfully' };
-    
+
   } catch (error) {
     console.error('Error updating bot config:', error);
     ctx.status = 500;
@@ -291,7 +270,6 @@ router.put("/api/bot-configs/:guildId", requireAuth, async (ctx) => {
 
 /**
  * GET /admin/api/teams
- * Returns all teams for management
  */
 router.get("/api/teams", requireAuth, async (ctx) => {
   try {
@@ -307,7 +285,7 @@ router.get("/api/teams", requireAuth, async (ctx) => {
     }));
 
     ctx.body = teams;
-    
+
   } catch (error) {
     console.error('Error fetching teams:', error);
     ctx.status = 500;
@@ -317,11 +295,10 @@ router.get("/api/teams", requireAuth, async (ctx) => {
 
 /**
  * POST /admin/api/teams
- * Creates a new team
  */
 router.post("/api/teams", requireAuth, async (ctx) => {
   const teamData = ctx.request.body as any;
-  
+
   try {
     const docRef = await db.collection('vfl_teams').add({
       ...teamData,
@@ -330,7 +307,7 @@ router.post("/api/teams", requireAuth, async (ctx) => {
     });
 
     ctx.body = { success: true, id: docRef.id, message: 'Team created successfully' };
-    
+
   } catch (error) {
     console.error('Error creating team:', error);
     ctx.status = 500;
@@ -340,12 +317,11 @@ router.post("/api/teams", requireAuth, async (ctx) => {
 
 /**
  * PUT /admin/api/teams/:teamId
- * Updates an existing team
  */
 router.put("/api/teams/:teamId", requireAuth, async (ctx) => {
   const { teamId } = ctx.params;
   const teamData = ctx.request.body as any;
-  
+
   try {
     await db.collection('vfl_teams').doc(teamId).update({
       ...teamData,
@@ -353,7 +329,7 @@ router.put("/api/teams/:teamId", requireAuth, async (ctx) => {
     });
 
     ctx.body = { success: true, message: 'Team updated successfully' };
-    
+
   } catch (error) {
     console.error('Error updating team:', error);
     ctx.status = 500;
@@ -363,15 +339,14 @@ router.put("/api/teams/:teamId", requireAuth, async (ctx) => {
 
 /**
  * DELETE /admin/api/teams/:teamId
- * Deletes a team
  */
 router.delete("/api/teams/:teamId", requireAuth, async (ctx) => {
   const { teamId } = ctx.params;
-  
+
   try {
     await db.collection('vfl_teams').doc(teamId).delete();
     ctx.body = { success: true, message: 'Team deleted successfully' };
-    
+
   } catch (error) {
     console.error('Error deleting team:', error);
     ctx.status = 500;
@@ -381,11 +356,10 @@ router.delete("/api/teams/:teamId", requireAuth, async (ctx) => {
 
 /**
  * GET /admin/api/trades
- * Returns all trades for management
  */
 router.get("/api/trades", requireAuth, async (ctx) => {
   const limit = parseInt(ctx.query.limit as string) || 50;
-  
+
   try {
     const tradesSnapshot = await db.collection('vfl_trades')
       .orderBy('tradeDate', 'desc')
@@ -399,7 +373,7 @@ router.get("/api/trades", requireAuth, async (ctx) => {
     }));
 
     ctx.body = trades;
-    
+
   } catch (error) {
     console.error('Error fetching trades:', error);
     ctx.status = 500;
@@ -409,11 +383,10 @@ router.get("/api/trades", requireAuth, async (ctx) => {
 
 /**
  * POST /admin/api/trades
- * Creates a new trade
  */
 router.post("/api/trades", requireAuth, async (ctx) => {
   const tradeData = ctx.request.body as any;
-  
+
   try {
     const docRef = await db.collection('vfl_trades').add({
       ...tradeData,
@@ -423,7 +396,7 @@ router.post("/api/trades", requireAuth, async (ctx) => {
     });
 
     ctx.body = { success: true, id: docRef.id, message: 'Trade created successfully' };
-    
+
   } catch (error) {
     console.error('Error creating trade:', error);
     ctx.status = 500;
@@ -433,11 +406,9 @@ router.post("/api/trades", requireAuth, async (ctx) => {
 
 /**
  * GET /admin/api/analytics
- * Returns analytics data for the dashboard
  */
 router.get("/api/analytics", async (ctx) => {
   try {
-    // This would be more sophisticated in a real implementation
     const analytics = {
       totalServers: 3,
       totalCommands: 1847,
@@ -455,12 +426,12 @@ router.get("/api/analytics", async (ctx) => {
         { serverId: '987654321', serverName: 'VFL Dynasty League', commandCount: 567 },
         { serverId: '456789123', serverName: 'VFL Test Server', commandCount: 234 }
       ],
-      tradesPerWeek: [12, 8, 15, 22, 18, 9, 14], // Last 7 weeks
-      gamesPerWeek: [16, 16, 16, 16, 16, 16, 16]  // Standard schedule
+      tradesPerWeek: [12, 8, 15, 22, 18, 9, 14],
+      gamesPerWeek: [16, 16, 16, 16, 16, 16, 16]
     };
-    
+
     ctx.body = analytics;
-    
+
   } catch (error) {
     console.error('Error fetching analytics:', error);
     ctx.status = 500;
@@ -470,7 +441,6 @@ router.get("/api/analytics", async (ctx) => {
 
 /**
  * POST /admin/logout
- * Logs out the admin user
  */
 router.post("/logout", async (ctx) => {
   ctx.cookies.set('vfl_admin_token', '', { maxAge: 0 });
@@ -479,30 +449,26 @@ router.post("/logout", async (ctx) => {
 
 /**
  * GET /admin/api/system-status
- * Returns system health information
  */
 router.get("/api/system-status", requireAuth, async (ctx) => {
   try {
-    // Test database connectivity
-    const testQuery = await db.collection('vfl_config').limit(1).get();
-    
-    const status = {
+    await db.collection('vfl_config').limit(1).get();
+
+    ctx.body = {
       database: 'healthy',
       api: 'healthy',
-      bot: 'healthy', // You'd implement actual bot status checking
+      bot: 'healthy',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       timestamp: new Date().toISOString()
     };
 
-    ctx.body = status;
-    
   } catch (error) {
     ctx.status = 503;
     ctx.body = {
       database: 'unhealthy',
       api: 'degraded',
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     };
   }
