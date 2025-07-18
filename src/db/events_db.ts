@@ -1,3 +1,4 @@
+import "../utils/polyfills"
 import { randomUUID } from "crypto"
 import { Timestamp, Filter } from "firebase-admin/firestore"
 import db from "./firebase"
@@ -56,7 +57,7 @@ const EventDB: EventDB = {
     }
     Object.entries(Object.groupBy(events, e => e.event_type)).map(async entry => {
       const [eventType, specificTypeEvents] = entry
-      if (specificTypeEvents) {
+      if (specificTypeEvents && Array.isArray(specificTypeEvents)) {
         const eventTypeNotifiers = notifiers[eventType]
         if (eventTypeNotifiers) {
           await Promise.all(eventTypeNotifiers.map(async notifier => {

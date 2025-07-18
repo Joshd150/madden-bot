@@ -1,3 +1,4 @@
+import "../utils/polyfills"
 import { randomUUID } from "crypto"
 import { Timestamp } from "firebase-admin/firestore"
 import db from "./firebase"
@@ -217,7 +218,7 @@ const MaddenDB: MaddenDB = {
     }
     Object.entries(Object.groupBy(events, e => e.event_type)).map(async entry => {
       const [eventType, specificTypeEvents] = entry
-      if (specificTypeEvents) {
+      if (specificTypeEvents && Array.isArray(specificTypeEvents)) {
         const eventTypeNotifiers = notifiers[eventType]
         if (eventTypeNotifiers) {
           await Promise.all(eventTypeNotifiers.map(async notifier => {
@@ -275,8 +276,8 @@ const MaddenDB: MaddenDB = {
     const allGames = Object.entries(Object.groupBy(allGameChanges.flat(), g => `${g.id}|${g.weekIndex}|${g.seasonIndex}`))
       .flatMap(entry => {
         const [_, gamesInWeek] = entry
-        if (gamesInWeek && gamesInWeek.length > 0) {
-          return [gamesInWeek.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0]]
+        if (gamesInWeek && Array.isArray(gamesInWeek) && gamesInWeek.length > 0) {
+          return [gamesInWeek.sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime())[0]]
         }
         return []
       }).filter(g => g.weekIndex === week - 1 && g.seasonIndex === season && g.stageIndex > 0)
