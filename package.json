@@ -1,5 +1,5 @@
 {
-  "name": "sports-trading-bot",
+  "name": "vfl-manager",
   "version": "1.0.0",
   "description": "Comprehensive sports trading and statistics Discord bot with web portal",
   "main": "dist/index.js",
@@ -11,8 +11,8 @@
     "lint": "eslint src/**/*.ts",
     "deploy-commands": "node dist/scripts/deploy-commands.js"
   },
-  "keywords": ["discord", "bot", "sports", "trading", "statistics"],
-  "author": "Sports Bot Developer",
+  "keywords": ["discord", "bot", "sports", "trading", "statistics", "vfl"],
+  "author": "VFL Manager Developer",
   "license": "MIT",
   "dependencies": {
     "@koa/bodyparser": "^5.0.0",

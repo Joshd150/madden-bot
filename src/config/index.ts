@@ -21,7 +21,7 @@ export const config = {
   // Database Configuration
   // Using SQLite for simplicity, but can be easily changed to PostgreSQL/MySQL
   database: {
-    path: process.env.DATABASE_PATH || './data/sports_bot.db',
+    path: process.env.DATABASE_PATH || './data/vfl_manager.db',
   },
 
   // Web Server Configuration
@@ -58,8 +58,8 @@ export const config = {
   // Website Configuration
   // Settings for the public-facing website
   website: {
-    title: process.env.WEBSITE_TITLE || 'Sports Trading Hub',
-    description: process.env.WEBSITE_DESCRIPTION || 'Your premier destination for sports trading and statistics',
+    title: process.env.WEBSITE_TITLE || 'VFL Manager Hub',
+    description: process.env.WEBSITE_DESCRIPTION || 'Your premier destination for VFL trading and statistics',
     discordInviteUrl: process.env.DISCORD_INVITE_URL || 'https://discord.gg/your-invite',
   },
 
