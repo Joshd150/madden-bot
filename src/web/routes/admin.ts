@@ -1,7 +1,7 @@
 import Router from "@koa/router";
 import { ParameterizedContext } from "koa";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 import db from "../../db/firebase";
 
 /**

@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 import path from 'path';
 
 // Load environment variables from .env file
@@ -9,7 +9,7 @@ dotenv.config();
  * This makes it easy to manage different environments (dev, staging, production)
  * and ensures all configuration is in one place for easy maintenance
  */
-export const config = {
+const config = {
   // Discord Bot Configuration
   // These are essential for connecting to Discord's API
   discord: {
@@ -79,6 +79,8 @@ export const config = {
     file: process.env.LOG_FILE || './logs/bot.log',
   },
 };
+
+export { config };
 
 /**
  * Validates that all required configuration values are present
