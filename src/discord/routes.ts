@@ -4,6 +4,7 @@ process.env.APP_ID = "1394701120097620112";
 process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
 process.env.DEPLOYMENT_URL = "36a3e451ce78.ngrok-free.app";
 
+import "../utils/polyfills"
 
 import { ParameterizedContext } from "koa"
 import Router from "@koa/router"

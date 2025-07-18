@@ -1,3 +1,4 @@
+import "../utils/polyfills"
 import { ParameterizedContext } from "koa"
 import { CommandHandler, Command, AutocompleteHandler, Autocomplete, MessageComponentHandler, MessageComponentInteraction } from "../commands_handler"
 import { respond, DiscordClient, deferMessage } from "../discord_utils"
