@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snallabot Madden League</title>
-    <meta name="description" content="Professional Madden franchise league with advanced statistics, real-time updates, and competitive gameplay.">
-    <meta name="keywords" content="Madden, NFL, franchise, league, discord bot, statistics">
+    <title>VFL Manager Hub - Premier Fantasy Football League</title>
+    <meta name="description" content="Join the most competitive fantasy football league with advanced statistics, real-time updates, and professional management.">
+    <meta name="keywords" content="fantasy football, VFL, league, discord bot, statistics, trades">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://snallabot.me/">
-    <meta property="og:title" content="Snallabot Madden League">
-    <meta property="og:description" content="Join our competitive Madden franchise league with advanced statistics and real-time updates.">
-    <meta property="og:image" content="https://snallabot.me/assets/og-image.jpg">
+    <meta property="og:url" content="https://vfl-manager.com/">
+    <meta property="og:title" content="VFL Manager Hub - Premier Fantasy Football League">
+    <meta property="og:description" content="Join our competitive fantasy football league with advanced statistics and real-time updates.">
+    <meta property="og:image" content="https://vfl-manager.com/assets/og-image.jpg">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://snallabot.me/">
-    <meta property="twitter:title" content="Snallabot Madden League">
-    <meta property="twitter:description" content="Join our competitive Madden franchise league with advanced statistics and real-time updates.">
-    <meta property="twitter:image" content="https://snallabot.me/assets/og-image.jpg">
+    <meta property="twitter:url" content="https://vfl-manager.com/">
+    <meta property="twitter:title" content="VFL Manager Hub">
+    <meta property="twitter:description" content="Premier fantasy football league with advanced statistics and real-time updates.">
+    <meta property="twitter:image" content="https://vfl-manager.com/assets/og-image.jpg">
 
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="stylesheet" href="/styles/main.css">
@@ -28,16 +28,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Navigation Header -->
     <header class="header">
         <nav class="nav">
             <div class="nav-brand">
-                <img src="/assets/logo.png" alt="Snallabot" class="logo">
-                <span class="brand-text">Snallabot League</span>
+                <img src="/assets/vfl-logo.png" alt="VFL Manager" class="logo">
+                <span class="brand-text">VFL Manager</span>
             </div>
             <div class="nav-links">
-                <a href="#standings" class="nav-link">Standings</a>
-                <a href="#stats" class="nav-link">Statistics</a>
+                <a href="#home" class="nav-link active">Home</a>
+                <a href="#news" class="nav-link">News</a>
                 <a href="#teams" class="nav-link">Teams</a>
+                <a href="#stats" class="nav-link">Statistics</a>
+                <a href="#schedule" class="nav-link">Schedule</a>
                 <a href="/admin" class="nav-link admin-link">Admin Portal</a>
             </div>
             <div class="nav-mobile">
@@ -52,19 +55,19 @@
 
     <main>
         <!-- Hero Section -->
-        <section class="hero">
+        <section id="home" class="hero">
             <div class="hero-content">
-                <h1 class="hero-title">Elite Madden Franchise League</h1>
-                <p class="hero-subtitle">Experience competitive Madden gameplay with advanced statistics, real-time updates, and professional league management.</p>
+                <h1 class="hero-title">Welcome to VFL Manager</h1>
+                <p class="hero-subtitle">Experience the most competitive fantasy football league with advanced statistics, real-time trade updates, and professional league management powered by our Discord bot.</p>
                 <div class="hero-actions">
-                    <a href="#join" class="btn btn-primary">Join League</a>
-                    <a href="#standings" class="btn btn-secondary">View Standings</a>
+                    <a href="#" class="btn btn-primary" id="joinDiscordBtn">Join Our Discord</a>
+                    <a href="#teams" class="btn btn-secondary">View Teams</a>
                 </div>
             </div>
             <div class="hero-stats">
                 <div class="stat-card">
-                    <div class="stat-number" id="totalGames">0</div>
-                    <div class="stat-label">Games Played</div>
+                    <div class="stat-number" id="totalTrades">0</div>
+                    <div class="stat-label">Trades This Season</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="activeTeams">0</div>
@@ -77,123 +80,189 @@
             </div>
         </section>
 
-        <!-- Standings Section -->
-        <section id="standings" class="section">
+        <!-- News & Updates Section -->
+        <section id="news" class="section">
             <div class="container">
-                <h2 class="section-title">League Standings</h2>
-                <div class="standings-container">
-                    <div class="conference-standings">
-                        <h3>AFC Conference</h3>
-                        <div class="standings-table" id="afcStandings">
-                            <div class="loading">Loading AFC standings...</div>
-                        </div>
-                    </div>
-                    <div class="conference-standings">
-                        <h3>NFC Conference</h3>
-                        <div class="standings-table" id="nfcStandings">
-                            <div class="loading">Loading NFC standings...</div>
-                        </div>
+                <h2 class="section-title">Latest News & Updates</h2>
+                <div class="news-grid" id="newsGrid">
+                    <div class="loading">Loading latest news...</div>
+                </div>
+                
+                <!-- Recent Trades Subsection -->
+                <div class="subsection">
+                    <h3 class="subsection-title">🔄 Recent Trades</h3>
+                    <div class="trades-list" id="recentTrades">
+                        <div class="loading">Loading recent trades...</div>
                     </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Statistics Section -->
-        <section id="stats" class="section bg-gray">
-            <div class="container">
-                <h2 class="section-title">League Statistics</h2>
-                <div class="stats-grid">
-                    <div class="stat-category">
-                        <h3>Passing Leaders</h3>
-                        <div class="stat-list" id="passingLeaders">
-                            <div class="loading">Loading passing stats...</div>
-                        </div>
-                    </div>
-                    <div class="stat-category">
-                        <h3>Rushing Leaders</h3>
-                        <div class="stat-list" id="rushingLeaders">
-                            <div class="loading">Loading rushing stats...</div>
-                        </div>
-                    </div>
-                    <div class="stat-category">
-                        <h3>Receiving Leaders</h3>
-                        <div class="stat-list" id="receivingLeaders">
-                            <div class="loading">Loading receiving stats...</div>
-                        </div>
-                    </div>
-                    <div class="stat-category">
-                        <h3>Defensive Leaders</h3>
-                        <div class="stat-list" id="defensiveLeaders">
-                            <div class="loading">Loading defensive stats...</div>
-                        </div>
+                <!-- Recent Scores Subsection -->
+                <div class="subsection">
+                    <h3 class="subsection-title">🏆 Recent Scores</h3>
+                    <div class="scores-list" id="recentScores">
+                        <div class="loading">Loading recent scores...</div>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- Teams Section -->
-        <section id="teams" class="section">
+        <section id="teams" class="section bg-gray">
             <div class="container">
                 <h2 class="section-title">League Teams</h2>
+                <div class="conference-tabs">
+                    <button class="tab-btn active" data-conference="all">All Teams</button>
+                    <button class="tab-btn" data-conference="AFC">AFC</button>
+                    <button class="tab-btn" data-conference="NFC">NFC</button>
+                </div>
                 <div class="teams-grid" id="teamsGrid">
                     <div class="loading">Loading teams...</div>
                 </div>
             </div>
         </section>
 
+        <!-- Statistics Section -->
+        <section id="stats" class="section">
+            <div class="container">
+                <h2 class="section-title">League Statistics</h2>
+                <div class="stats-tabs">
+                    <button class="tab-btn active" data-stat="passing">Passing</button>
+                    <button class="tab-btn" data-stat="rushing">Rushing</button>
+                    <button class="tab-btn" data-stat="receiving">Receiving</button>
+                    <button class="tab-btn" data-stat="defense">Defense</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-category">
+                        <h3 id="statsTitle">Passing Leaders</h3>
+                        <div class="stat-list" id="statsList">
+                            <div class="loading">Loading statistics...</div>
+                        </div>
+                    </div>
+                    <div class="stat-category">
+                        <h3>Team Rankings</h3>
+                        <div class="stat-list" id="teamRankings">
+                            <div class="loading">Loading team rankings...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Schedule Section -->
+        <section id="schedule" class="section bg-gray">
+            <div class="container">
+                <h2 class="section-title">Game Schedule</h2>
+                <div class="schedule-controls">
+                    <div class="week-selector">
+                        <label for="weekSelect">Week:</label>
+                        <select id="weekSelect">
+                            <option value="current">Current Week</option>
+                            <option value="1">Week 1</option>
+                            <option value="2">Week 2</option>
+                            <option value="3">Week 3</option>
+                            <option value="4">Week 4</option>
+                            <option value="5">Week 5</option>
+                            <option value="6">Week 6</option>
+                            <option value="7">Week 7</option>
+                            <option value="8">Week 8</option>
+                            <option value="9">Week 9</option>
+                            <option value="10">Week 10</option>
+                            <option value="11">Week 11</option>
+                            <option value="12">Week 12</option>
+                            <option value="13">Week 13</option>
+                            <option value="14">Week 14</option>
+                            <option value="15">Week 15</option>
+                            <option value="16">Week 16</option>
+                            <option value="17">Week 17</option>
+                            <option value="18">Week 18</option>
+                        </select>
+                    </div>
+                    <div class="view-toggle">
+                        <button class="toggle-btn active" data-view="upcoming">Upcoming</button>
+                        <button class="toggle-btn" data-view="completed">Completed</button>
+                    </div>
+                </div>
+                <div class="schedule-grid" id="scheduleGrid">
+                    <div class="loading">Loading schedule...</div>
+                </div>
+            </div>
+        </section>
+
         <!-- Join Section -->
-        <section id="join" class="section bg-primary">
+        <section class="section bg-primary">
             <div class="container">
                 <div class="join-content">
-                    <h2>Ready to Join?</h2>
-                    <p>Experience the most competitive Madden franchise league with professional management and advanced statistics.</p>
+                    <h2>Ready to Join the VFL?</h2>
+                    <p>Experience the most competitive fantasy football league with professional management, advanced statistics, and an amazing community.</p>
                     <div class="join-features">
                         <div class="feature">
                             <div class="feature-icon">🏆</div>
                             <div class="feature-text">
                                 <h4>Competitive Play</h4>
-                                <p>Face skilled opponents in structured seasons</p>
+                                <p>Face skilled managers in structured seasons with playoffs</p>
                             </div>
                         </div>
                         <div class="feature">
                             <div class="feature-icon">📊</div>
                             <div class="feature-text">
-                                <h4>Advanced Stats</h4>
-                                <p>Detailed analytics and performance tracking</p>
+                                <h4>Advanced Analytics</h4>
+                                <p>Detailed statistics and performance tracking for all teams</p>
                             </div>
                         </div>
                         <div class="feature">
                             <div class="feature-icon">🤖</div>
                             <div class="feature-text">
                                 <h4>Bot Integration</h4>
-                                <p>Automated league management and updates</p>
+                                <p>Automated trade posting, score updates, and league management</p>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon">💬</div>
+                            <div class="feature-text">
+                                <h4>Active Community</h4>
+                                <p>Engaged Discord community with daily discussions and banter</p>
                             </div>
                         </div>
                     </div>
-                    <a href="https://discord.gg/your-invite" class="btn btn-white">Join Discord Server</a>
+                    <a href="#" class="btn btn-white" id="joinDiscordBtn2">Join Our Discord Server</a>
                 </div>
             </div>
         </section>
     </main>
 
+    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
                 <div class="footer-brand">
-                    <img src="/assets/logo.png" alt="Snallabot" class="footer-logo">
-                    <span>Snallabot League</span>
+                    <img src="/assets/vfl-logo.png" alt="VFL Manager" class="footer-logo">
+                    <span>VFL Manager</span>
                 </div>
                 <div class="footer-links">
                     <a href="/privacy">Privacy Policy</a>
                     <a href="/terms">Terms of Service</a>
-                    <a href="https://github.com/snallabot/snallabot-service">GitHub</a>
+                    <a href="https://github.com/vfl-manager/vfl-manager">GitHub</a>
+                    <a href="/admin">Admin Portal</a>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Snallabot. All rights reserved.</p>
+                <p>&copy; 2024 VFL Manager. All rights reserved.</p>
             </div>
         </div>
     </footer>
+
+    <!-- Discord Invite Modal -->
+    <div id="discordModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Join VFL Manager Discord</h2>
+            <p>Ready to join the most competitive fantasy football league? Click below to join our Discord server and get started!</p>
+            <div class="modal-actions">
+                <a href="https://discord.gg/your-invite-code" class="btn btn-primary" target="_blank">Join Discord Server</a>
+                <button class="btn btn-secondary" id="closeModal">Maybe Later</button>
+            </div>
+        </div>
+    </div>
 
     <script src="/scripts/main.js"></script>
 </body>

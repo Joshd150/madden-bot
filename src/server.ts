@@ -8,6 +8,8 @@ import twitchRouter from "./twitch-notifier/routes"
 import connectionsRouter from "./connections/routes"
 import debugRouter from "./debug/routes"
 import dashboard from "./dashboard/routes"
+import vflWebApiRouter from "./web/routes/api"
+import vflWebAdminRouter from "./web/routes/admin"
 import webApiRouter from "./web/routes/api"
 import webAdminRouter from "./web/routes/admin"
 
@@ -39,6 +41,10 @@ app
   .use(debugRouter.allowedMethods())
   .use(dashboard.routes())
   .use(dashboard.allowedMethods())
+  .use(vflWebApiRouter.routes())
+  .use(vflWebApiRouter.allowedMethods())
+  .use(vflWebAdminRouter.routes())
+  .use(vflWebAdminRouter.allowedMethods())
   .use(webApiRouter.routes())
   .use(webApiRouter.allowedMethods())
   .use(webAdminRouter.routes())

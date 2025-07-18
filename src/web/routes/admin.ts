@@ -2,15 +2,33 @@ import Router from "@koa/router";
 import { ParameterizedContext } from "koa";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { WEB_CONFIG } from "../../config";
 import db from "../../db/firebase";
-import { LeagueSettings } from "../../discord/settings_db";
+
+/**
+ * VFL Manager Admin Portal Routes - The command center for league management!
+ * 
+ * This is where league administrators can manage the entire VFL system from a
+ * beautiful web interface. Think of it as the mission control for our Discord bot
+ * and league operations.
+ * 
+ * The admin portal provides a user-friendly way to configure bot settings,
+ * manage teams and players, view analytics, and control all aspects of the
+ * league without needing to touch code or use Discord commands.
+ */
 
 const router = new Router({ prefix: "/admin" });
 
-// Admin authentication middleware
+// Get configuration from environment variables
+const JWT_SECRET = process.env.JWT_SECRET || 'vfl-manager-secret-change-in-production';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@vfl-manager.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme';
+
+/**
+ * Authentication middleware - protects admin routes
+ * Only authenticated administrators can access the admin portal
+ */
 async function requireAuth(ctx: ParameterizedContext, next: Function) {
-  const token = ctx.cookies.get('admin_token') || ctx.headers.authorization?.replace('Bearer ', '');
+  const token = ctx.cookies.get('vfl_admin_token') || ctx.headers.authorization?.replace('Bearer ', '');
   
   if (!token) {
     ctx.status = 401;
@@ -19,23 +37,26 @@ async function requireAuth(ctx: ParameterizedContext, next: Function) {
   }
 
   try {
-    const decoded = jwt.verify(token, WEB_CONFIG.jwtSecret) as any;
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     ctx.state.admin = decoded;
     await next();
   } catch (error) {
     ctx.status = 401;
-    ctx.body = { error: 'Invalid token' };
+    ctx.body = { error: 'Invalid or expired token' };
   }
 }
 
-// Serve admin login page
+/**
+ * GET /admin
+ * Serves the admin login page or redirects to dashboard if already authenticated
+ */
 router.get("/", async (ctx) => {
-  const token = ctx.cookies.get('admin_token');
+  const token = ctx.cookies.get('vfl_admin_token');
   
   if (token) {
     try {
-      jwt.verify(token, WEB_CONFIG.jwtSecret);
-      // Redirect to dashboard if already authenticated
+      jwt.verify(token, JWT_SECRET);
+      // Already authenticated, redirect to dashboard
       ctx.redirect('/admin/dashboard');
       return;
     } catch (error) {
@@ -43,6 +64,7 @@ router.get("/", async (ctx) => {
     }
   }
 
+  // Serve the login page
   ctx.type = 'html';
   ctx.body = `
 <!DOCTYPE html>
@@ -50,29 +72,33 @@ router.get("/", async (ctx) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login - Snallabot</title>
+    <title>Admin Login - VFL Manager</title>
     <link rel="stylesheet" href="/styles/admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <img src="/assets/logo.png" alt="Snallabot" class="login-logo">
-                <h1>Admin Portal</h1>
-                <p>Sign in to manage your Madden league</p>
+                <img src="/assets/vfl-logo.png" alt="VFL Manager" class="login-logo">
+                <h1>VFL Manager Admin</h1>
+                <p>Sign in to manage your fantasy football league</p>
             </div>
             <form class="login-form" id="loginForm">
                 <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required>
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required placeholder="admin@vfl-manager.com">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
+                    <input type="password" id="password" name="password" required placeholder="Enter your password">
                 </div>
-                <button type="submit" class="btn btn-primary">Sign In</button>
+                <button type="submit" class="btn btn-primary">Sign In to Admin Portal</button>
                 <div id="error-message" class="error-message"></div>
             </form>
+            <div class="login-footer">
+                <p>Secure access to VFL Manager administration</p>
+            </div>
         </div>
     </div>
     <script src="/scripts/admin-login.js"></script>
@@ -81,32 +107,40 @@ router.get("/", async (ctx) => {
   `;
 });
 
-// Admin login endpoint
+/**
+ * POST /admin/login
+ * Handles admin authentication
+ */
 router.post("/login", async (ctx) => {
   const { email, password } = ctx.request.body as any;
 
-  // Simple authentication - in production, use proper user management
-  if (email === WEB_CONFIG.adminEmail && password === WEB_CONFIG.adminPassword) {
+  // Simple authentication - in production, you'd use a proper user management system
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
     const token = jwt.sign(
-      { email, role: 'admin' },
-      WEB_CONFIG.jwtSecret,
+      { email, role: 'admin', loginTime: Date.now() },
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    ctx.cookies.set('admin_token', token, {
+    // Set secure cookie
+    ctx.cookies.set('vfl_admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'strict'
     });
 
     ctx.body = { success: true, redirect: '/admin/dashboard' };
   } else {
     ctx.status = 401;
-    ctx.body = { error: 'Invalid credentials' };
+    ctx.body = { error: 'Invalid email or password' };
   }
 });
 
-// Admin dashboard
+/**
+ * GET /admin/dashboard
+ * Serves the main admin dashboard
+ */
 router.get("/dashboard", requireAuth, async (ctx) => {
   ctx.type = 'html';
   ctx.body = `
@@ -115,23 +149,26 @@ router.get("/dashboard", requireAuth, async (ctx) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Snallabot</title>
+    <title>Admin Dashboard - VFL Manager</title>
     <link rel="stylesheet" href="/styles/admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="admin-layout">
         <nav class="admin-sidebar">
             <div class="sidebar-header">
-                <img src="/assets/logo.png" alt="Snallabot" class="sidebar-logo">
-                <span>Admin Portal</span>
+                <img src="/assets/vfl-logo.png" alt="VFL Manager" class="sidebar-logo">
+                <span>VFL Admin</span>
             </div>
             <ul class="sidebar-nav">
-                <li><a href="#overview" class="nav-link active">Overview</a></li>
-                <li><a href="#servers" class="nav-link">Discord Servers</a></li>
-                <li><a href="#channels" class="nav-link">Channel Management</a></li>
-                <li><a href="#bot-status" class="nav-link">Bot Status</a></li>
-                <li><a href="#analytics" class="nav-link">Analytics</a></li>
-                <li><a href="#settings" class="nav-link">Settings</a></li>
+                <li><a href="#overview" class="nav-link active">📊 Overview</a></li>
+                <li><a href="#bot-config" class="nav-link">🤖 Bot Configuration</a></li>
+                <li><a href="#teams" class="nav-link">🏈 Teams Management</a></li>
+                <li><a href="#players" class="nav-link">👤 Players Management</a></li>
+                <li><a href="#trades" class="nav-link">🔄 Trades Management</a></li>
+                <li><a href="#games" class="nav-link">🏆 Games Management</a></li>
+                <li><a href="#analytics" class="nav-link">📈 Analytics</a></li>
+                <li><a href="#settings" class="nav-link">⚙️ Settings</a></li>
             </ul>
             <div class="sidebar-footer">
                 <button id="logoutBtn" class="btn btn-secondary">Logout</button>
@@ -141,7 +178,7 @@ router.get("/dashboard", requireAuth, async (ctx) => {
             <header class="content-header">
                 <h1 id="pageTitle">Dashboard Overview</h1>
                 <div class="header-actions">
-                    <button class="btn btn-primary" id="refreshData">Refresh Data</button>
+                    <button class="btn btn-primary" id="refreshData">🔄 Refresh Data</button>
                 </div>
             </header>
             <div class="content-body" id="contentBody">
@@ -155,89 +192,320 @@ router.get("/dashboard", requireAuth, async (ctx) => {
   `;
 });
 
-// Get Discord servers
-router.get("/api/servers", requireAuth, async (ctx) => {
+/**
+ * GET /admin/api/overview
+ * Returns dashboard overview data
+ */
+router.get("/api/overview", requireAuth, async (ctx) => {
   try {
-    const serversSnapshot = await db.collection("league_settings").get();
-    const servers = serversSnapshot.docs.map(doc => ({
+    // Get counts of various entities
+    const [teamsSnapshot, playersSnapshot, tradesSnapshot, gamesSnapshot, configSnapshot] = await Promise.all([
+      db.collection('vfl_teams').get(),
+      db.collection('vfl_players').get(),
+      db.collection('vfl_trades').get(),
+      db.collection('vfl_games').get(),
+      db.collection('vfl_config').get()
+    ]);
+
+    // Get recent activity
+    const recentTradesSnapshot = await db.collection('vfl_trades')
+      .orderBy('tradeDate', 'desc')
+      .limit(5)
+      .get();
+
+    const recentGamesSnapshot = await db.collection('vfl_games')
+      .where('status', '==', 'completed')
+      .orderBy('gameDate', 'desc')
+      .limit(5)
+      .get();
+
+    const overview = {
+      totals: {
+        teams: teamsSnapshot.size,
+        players: playersSnapshot.size,
+        trades: tradesSnapshot.size,
+        games: gamesSnapshot.size,
+        servers: configSnapshot.size
+      },
+      recentTrades: recentTradesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        tradeDate: doc.data().tradeDate.toDate()
+      })),
+      recentGames: recentGamesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        gameDate: doc.data().gameDate.toDate()
+      }))
+    };
+
+    ctx.body = overview;
+    
+  } catch (error) {
+    console.error('Error fetching overview:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to fetch overview data' };
+  }
+});
+
+/**
+ * GET /admin/api/bot-configs
+ * Returns Discord server configurations
+ */
+router.get("/api/bot-configs", requireAuth, async (ctx) => {
+  try {
+    const configsSnapshot = await db.collection('vfl_config').get();
+    
+    const configs = configsSnapshot.docs.map(doc => ({
+      guildId: doc.id,
+      ...doc.data()
+    }));
+
+    ctx.body = configs;
+    
+  } catch (error) {
+    console.error('Error fetching bot configs:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to fetch bot configurations' };
+  }
+});
+
+/**
+ * PUT /admin/api/bot-configs/:guildId
+ * Updates Discord server configuration
+ */
+router.put("/api/bot-configs/:guildId", requireAuth, async (ctx) => {
+  const { guildId } = ctx.params;
+  const config = ctx.request.body as any;
+  
+  try {
+    await db.collection('vfl_config').doc(guildId).set(config, { merge: true });
+    ctx.body = { success: true, message: 'Configuration updated successfully' };
+    
+  } catch (error) {
+    console.error('Error updating bot config:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to update configuration' };
+  }
+});
+
+/**
+ * GET /admin/api/teams
+ * Returns all teams for management
+ */
+router.get("/api/teams", requireAuth, async (ctx) => {
+  try {
+    const teamsSnapshot = await db.collection('vfl_teams')
+      .orderBy('conference')
+      .orderBy('division')
+      .orderBy('name')
+      .get();
+
+    const teams = teamsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+
+    ctx.body = teams;
     
-    ctx.body = servers;
   } catch (error) {
+    console.error('Error fetching teams:', error);
     ctx.status = 500;
-    ctx.body = { error: 'Failed to fetch servers' };
+    ctx.body = { error: 'Failed to fetch teams' };
   }
 });
 
-// Get server details
-router.get("/api/servers/:serverId", requireAuth, async (ctx) => {
-  const { serverId } = ctx.params;
+/**
+ * POST /admin/api/teams
+ * Creates a new team
+ */
+router.post("/api/teams", requireAuth, async (ctx) => {
+  const teamData = ctx.request.body as any;
   
   try {
-    const doc = await db.collection("league_settings").doc(serverId).get();
-    if (!doc.exists) {
-      ctx.status = 404;
-      ctx.body = { error: 'Server not found' };
-      return;
-    }
+    const docRef = await db.collection('vfl_teams').add({
+      ...teamData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    ctx.body = { success: true, id: docRef.id, message: 'Team created successfully' };
     
-    ctx.body = { id: doc.id, ...doc.data() };
   } catch (error) {
+    console.error('Error creating team:', error);
     ctx.status = 500;
-    ctx.body = { error: 'Failed to fetch server details' };
+    ctx.body = { error: 'Failed to create team' };
   }
 });
 
-// Update server settings
-router.put("/api/servers/:serverId", requireAuth, async (ctx) => {
-  const { serverId } = ctx.params;
-  const settings = ctx.request.body as Partial<LeagueSettings>;
+/**
+ * PUT /admin/api/teams/:teamId
+ * Updates an existing team
+ */
+router.put("/api/teams/:teamId", requireAuth, async (ctx) => {
+  const { teamId } = ctx.params;
+  const teamData = ctx.request.body as any;
   
   try {
-    await db.collection("league_settings").doc(serverId).set(settings, { merge: true });
-    ctx.body = { success: true };
+    await db.collection('vfl_teams').doc(teamId).update({
+      ...teamData,
+      updatedAt: new Date()
+    });
+
+    ctx.body = { success: true, message: 'Team updated successfully' };
+    
   } catch (error) {
+    console.error('Error updating team:', error);
     ctx.status = 500;
-    ctx.body = { error: 'Failed to update server settings' };
+    ctx.body = { error: 'Failed to update team' };
   }
 });
 
-// Get bot analytics
-router.get("/api/analytics", requireAuth, async (ctx) => {
+/**
+ * DELETE /admin/api/teams/:teamId
+ * Deletes a team
+ */
+router.delete("/api/teams/:teamId", requireAuth, async (ctx) => {
+  const { teamId } = ctx.params;
+  
   try {
-    // Mock analytics data - in production, implement proper analytics
+    await db.collection('vfl_teams').doc(teamId).delete();
+    ctx.body = { success: true, message: 'Team deleted successfully' };
+    
+  } catch (error) {
+    console.error('Error deleting team:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to delete team' };
+  }
+});
+
+/**
+ * GET /admin/api/trades
+ * Returns all trades for management
+ */
+router.get("/api/trades", requireAuth, async (ctx) => {
+  const limit = parseInt(ctx.query.limit as string) || 50;
+  
+  try {
+    const tradesSnapshot = await db.collection('vfl_trades')
+      .orderBy('tradeDate', 'desc')
+      .limit(limit)
+      .get();
+
+    const trades = tradesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      tradeDate: doc.data().tradeDate.toDate()
+    }));
+
+    ctx.body = trades;
+    
+  } catch (error) {
+    console.error('Error fetching trades:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to fetch trades' };
+  }
+});
+
+/**
+ * POST /admin/api/trades
+ * Creates a new trade
+ */
+router.post("/api/trades", requireAuth, async (ctx) => {
+  const tradeData = ctx.request.body as any;
+  
+  try {
+    const docRef = await db.collection('vfl_trades').add({
+      ...tradeData,
+      tradeDate: new Date(),
+      postedToDiscord: false,
+      createdAt: new Date()
+    });
+
+    ctx.body = { success: true, id: docRef.id, message: 'Trade created successfully' };
+    
+  } catch (error) {
+    console.error('Error creating trade:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to create trade' };
+  }
+});
+
+/**
+ * GET /admin/api/analytics
+ * Returns analytics data for the dashboard
+ */
+router.get("/api/analytics", async (ctx) => {
+  try {
+    // This would be more sophisticated in a real implementation
     const analytics = {
-      totalServers: 5,
-      totalCommands: 1250,
-      activeUsers: 89,
-      commandsToday: 45,
+      totalServers: 3,
+      totalCommands: 1847,
+      activeUsers: 156,
+      commandsToday: 73,
       popularCommands: [
-        { name: 'standings', count: 234 },
-        { name: 'schedule', count: 189 },
-        { name: 'player', count: 156 },
-        { name: 'teams', count: 134 },
-        { name: 'game_channels', count: 98 }
+        { name: 'trades', count: 342 },
+        { name: 'scores', count: 298 },
+        { name: 'teams', count: 234 },
+        { name: 'standings', count: 189 },
+        { name: 'players', count: 156 }
       ],
       serverActivity: [
-        { serverId: '123456789', serverName: 'Main League', commandCount: 456 },
-        { serverId: '987654321', serverName: 'Secondary League', commandCount: 234 },
-        { serverId: '456789123', serverName: 'Test Server', commandCount: 123 }
-      ]
+        { serverId: '123456789', serverName: 'Main VFL Server', commandCount: 892 },
+        { serverId: '987654321', serverName: 'VFL Dynasty League', commandCount: 567 },
+        { serverId: '456789123', serverName: 'VFL Test Server', commandCount: 234 }
+      ],
+      tradesPerWeek: [12, 8, 15, 22, 18, 9, 14], // Last 7 weeks
+      gamesPerWeek: [16, 16, 16, 16, 16, 16, 16]  // Standard schedule
     };
     
     ctx.body = analytics;
+    
   } catch (error) {
+    console.error('Error fetching analytics:', error);
     ctx.status = 500;
     ctx.body = { error: 'Failed to fetch analytics' };
   }
 });
 
-// Logout endpoint
+/**
+ * POST /admin/logout
+ * Logs out the admin user
+ */
 router.post("/logout", async (ctx) => {
-  ctx.cookies.set('admin_token', '', { maxAge: 0 });
-  ctx.body = { success: true };
+  ctx.cookies.set('vfl_admin_token', '', { maxAge: 0 });
+  ctx.body = { success: true, message: 'Logged out successfully' };
+});
+
+/**
+ * GET /admin/api/system-status
+ * Returns system health information
+ */
+router.get("/api/system-status", requireAuth, async (ctx) => {
+  try {
+    // Test database connectivity
+    const testQuery = await db.collection('vfl_config').limit(1).get();
+    
+    const status = {
+      database: 'healthy',
+      api: 'healthy',
+      bot: 'healthy', // You'd implement actual bot status checking
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      timestamp: new Date().toISOString()
+    };
+
+    ctx.body = status;
+    
+  } catch (error) {
+    ctx.status = 503;
+    ctx.body = {
+      database: 'unhealthy',
+      api: 'degraded',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
+  }
 });
 
 export default router;

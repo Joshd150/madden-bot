@@ -15,6 +15,9 @@ import schedulesHandler from "./commands/schedule"
 import gameChannelHandler from "./commands/game_channels"
 import exportHandler from "./commands/export"
 import standingsHandler from "./commands/standings"
+import tradesHandler from "../vfl/commands/trades"
+import scoresHandler from "../vfl/commands/scores"
+import teamsVFLHandler from "../vfl/commands/teams"
 import playerHandler from "./commands/player"
 import channelManagementHandler from "./commands/channel_management"
 import advancedStatsHandler from "./commands/advanced_stats"
@@ -51,6 +54,9 @@ const SlashCommands: CommandsHandler = {
   "export": exportHandler,
   "test": testHandler,
   "standings": standingsHandler,
+  "vfl-trades": tradesHandler,
+  "vfl-scores": scoresHandler,
+  "vfl-teams": teamsVFLHandler,
   "player": playerHandler,
   "set-channel": channelManagementHandler,
   "advanced-stats": advancedStatsHandler

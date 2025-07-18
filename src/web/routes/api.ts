@@ -1,235 +1,477 @@
 import Router from "@koa/router";
 import { ParameterizedContext } from "koa";
-import MaddenDB from "../../db/madden_db";
-import { Standing, Player, Team } from "../../export/madden_league_types";
+import db from "../../db/firebase";
 
-const router = new Router({ prefix: "/api" });
+/**
+ * VFL Manager API Routes - The data highway for our web interface!
+ * 
+ * These API endpoints serve data from our Firestore database to the web interface.
+ * They use the exact same database and data structures as our Discord bot, ensuring
+ * perfect consistency between the bot and website.
+ * 
+ * Think of these as the bridge between our beautiful web interface and the rich
+ * data that our Discord bot manages. Every endpoint is designed to be fast,
+ * reliable, and provide exactly the data our frontend needs.
+ */
 
-// Middleware to handle API errors
+const router = new Router({ prefix: "/api/vfl" });
+
+/**
+ * Middleware to handle API errors gracefully
+ * This ensures our users get helpful error messages instead of cryptic failures
+ */
 async function apiErrorHandler(ctx: ParameterizedContext, next: Function) {
   try {
     await next();
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('VFL API Error:', error);
     ctx.status = 500;
     ctx.body = {
       error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
     };
   }
 }
 
 router.use(apiErrorHandler);
 
-// Get league summary statistics
-router.get("/league/stats/summary", async (ctx) => {
-  // For now, return mock data. In production, this would query actual league data
-  const leagueId = "3418359"; // Default league ID - should be configurable
-  
+/**
+ * GET /api/vfl/stats/summary
+ * Returns high-level statistics for the hero section
+ * This gives visitors an immediate sense of how active our league is
+ */
+router.get("/stats/summary", async (ctx) => {
   try {
-    const teams = await MaddenDB.getLatestTeams(leagueId);
-    const standings = await MaddenDB.getLatestStandings(leagueId);
+    // Get total trades this season
+    const tradesSnapshot = await db.collection('vfl_trades')
+      .where('tradeDate', '>=', new Date(new Date().getFullYear(), 0, 1)) // This year
+      .get();
     
-    // Calculate total games played
-    const totalGames = standings.reduce((sum, team) => sum + team.totalWins + team.totalLosses + team.totalTies, 0) / 2;
+    // Get total active teams
+    const teamsSnapshot = await db.collection('vfl_teams').get();
     
-    // Get current week from standings (assuming all teams are in same week)
-    const currentWeek = standings.length > 0 ? standings[0].weekIndex + 1 : 1;
+    // Get current week from the most recent game
+    const gamesSnapshot = await db.collection('vfl_games')
+      .orderBy('gameDate', 'desc')
+      .limit(1)
+      .get();
+    
+    const currentWeek = gamesSnapshot.empty ? 1 : gamesSnapshot.docs[0].data().week;
     
     ctx.body = {
-      totalGames: Math.floor(totalGames),
-      activeTeams: teams.getLatestTeams().length,
+      totalTrades: tradesSnapshot.size,
+      activeTeams: teamsSnapshot.size,
       currentWeek: currentWeek
     };
+    
   } catch (error) {
+    console.error('Error fetching summary stats:', error);
+    // Return default values if there's an error
     ctx.body = {
-      totalGames: 0,
+      totalTrades: 0,
       activeTeams: 32,
       currentWeek: 1
     };
   }
 });
 
-// Get league standings
-router.get("/league/standings", async (ctx) => {
-  const leagueId = "3418359"; // Default league ID
-  
+/**
+ * GET /api/vfl/news/recent
+ * Returns recent news and updates
+ * Keeps our community informed about league happenings
+ */
+router.get("/news/recent", async (ctx) => {
   try {
-    const standings = await MaddenDB.getLatestStandings(leagueId);
-    const teams = await MaddenDB.getLatestTeams(leagueId);
+    const newsSnapshot = await db.collection('vfl_news')
+      .where('published', '==', true)
+      .orderBy('publishDate', 'desc')
+      .limit(6)
+      .get();
+
+    const news = newsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      publishDate: doc.data().publishDate.toDate()
+    }));
+
+    ctx.body = news;
     
-    // Enhance standings with team information
-    const enhancedStandings = standings.map(standing => {
-      const team = teams.getTeamForId(standing.teamId);
-      return {
-        ...standing,
-        displayName: team.displayName,
-        cityName: team.cityName,
-        abbrName: team.abbrName
-      };
-    });
-    
-    ctx.body = enhancedStandings;
   } catch (error) {
+    console.error('Error fetching news:', error);
     ctx.status = 404;
-    ctx.body = { error: "Standings not found" };
+    ctx.body = { error: "News not found" };
   }
 });
 
-// Get league teams
-router.get("/league/teams", async (ctx) => {
-  const leagueId = "3418359"; // Default league ID
+/**
+ * GET /api/vfl/trades/recent
+ * Returns recent trades with optional limit
+ * Everyone loves to see the latest wheeling and dealing!
+ */
+router.get("/trades/recent", async (ctx) => {
+  const limit = parseInt(ctx.query.limit as string) || 10;
   
   try {
-    const teams = await MaddenDB.getLatestTeams(leagueId);
-    const standings = await MaddenDB.getLatestStandings(leagueId);
+    const tradesSnapshot = await db.collection('vfl_trades')
+      .orderBy('tradeDate', 'desc')
+      .limit(limit)
+      .get();
+
+    const trades = tradesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      tradeDate: doc.data().tradeDate.toDate()
+    }));
+
+    ctx.body = trades;
     
-    // Enhance teams with standings information
-    const enhancedTeams = teams.getLatestTeams().map(team => {
-      const standing = standings.find(s => s.teamId === team.teamId);
-      return {
-        ...team,
-        totalWins: standing?.totalWins || 0,
-        totalLosses: standing?.totalLosses || 0,
-        totalTies: standing?.totalTies || 0,
-        ptsFor: standing?.ptsFor || 0,
-        ptsAgainst: standing?.ptsAgainst || 0
-      };
-    });
-    
-    ctx.body = enhancedTeams;
   } catch (error) {
+    console.error('Error fetching recent trades:', error);
+    ctx.status = 404;
+    ctx.body = { error: "Trades not found" };
+  }
+});
+
+/**
+ * GET /api/vfl/games/recent
+ * Returns recent completed games
+ * Perfect for checking the latest results
+ */
+router.get("/games/recent", async (ctx) => {
+  const limit = parseInt(ctx.query.limit as string) || 10;
+  
+  try {
+    const gamesSnapshot = await db.collection('vfl_games')
+      .where('status', '==', 'completed')
+      .orderBy('gameDate', 'desc')
+      .limit(limit)
+      .get();
+
+    const games = gamesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      gameDate: doc.data().gameDate.toDate()
+    }));
+
+    ctx.body = games;
+    
+  } catch (error) {
+    console.error('Error fetching recent games:', error);
+    ctx.status = 404;
+    ctx.body = { error: "Games not found" };
+  }
+});
+
+/**
+ * GET /api/vfl/games/schedule
+ * Returns game schedule with filtering options
+ * Essential for planning your viewing schedule
+ */
+router.get("/games/schedule", async (ctx) => {
+  const view = ctx.query.view as string || 'upcoming'; // 'upcoming' or 'completed'
+  const week = ctx.query.week as string;
+  const limit = parseInt(ctx.query.limit as string) || 20;
+  
+  try {
+    let query = db.collection('vfl_games');
+    
+    // Filter by game status
+    if (view === 'upcoming') {
+      query = query.where('status', '==', 'scheduled');
+    } else {
+      query = query.where('status', '==', 'completed');
+    }
+    
+    // Filter by week if specified
+    if (week && week !== 'current') {
+      query = query.where('week', '==', parseInt(week));
+    }
+    
+    // Order and limit
+    const orderDirection = view === 'upcoming' ? 'asc' : 'desc';
+    query = query.orderBy('gameDate', orderDirection).limit(limit);
+    
+    const gamesSnapshot = await query.get();
+
+    const games = gamesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      gameDate: doc.data().gameDate.toDate()
+    }));
+
+    ctx.body = games;
+    
+  } catch (error) {
+    console.error('Error fetching schedule:', error);
+    ctx.status = 404;
+    ctx.body = { error: "Schedule not found" };
+  }
+});
+
+/**
+ * GET /api/vfl/teams
+ * Returns all teams in the league
+ * The foundation of our league structure
+ */
+router.get("/teams", async (ctx) => {
+  try {
+    const teamsSnapshot = await db.collection('vfl_teams')
+      .orderBy('conference')
+      .orderBy('division')
+      .orderBy('name')
+      .get();
+
+    const teams = teamsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    ctx.body = teams;
+    
+  } catch (error) {
+    console.error('Error fetching teams:', error);
     ctx.status = 404;
     ctx.body = { error: "Teams not found" };
   }
 });
 
-// Get statistical leaders
-router.get("/league/leaders/:category", async (ctx) => {
-  const { category } = ctx.params;
-  const leagueId = "3418359"; // Default league ID
-  
+/**
+ * GET /api/vfl/teams/rankings
+ * Returns teams ranked by performance
+ * For the competitive folks who want to see standings
+ */
+router.get("/teams/rankings", async (ctx) => {
   try {
-    const players = await MaddenDB.getLatestPlayers(leagueId);
-    const teams = await MaddenDB.getLatestTeams(leagueId);
+    const teamsSnapshot = await db.collection('vfl_teams')
+      .get();
+
+    let teams = teamsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    // Filter teams that have records and sort them
+    teams = teams
+      .filter(team => team.record)
+      .sort((a, b) => {
+        // Sort by wins first
+        if (a.record.wins !== b.record.wins) {
+          return b.record.wins - a.record.wins;
+        }
+        
+        // Then by win percentage
+        const aWinPct = a.record.wins / (a.record.wins + a.record.losses + (a.record.ties || 0));
+        const bWinPct = b.record.wins / (b.record.wins + b.record.losses + (b.record.ties || 0));
+        if (aWinPct !== bWinPct) {
+          return bWinPct - aWinPct;
+        }
+        
+        // Finally by point differential
+        const aDiff = (a.stats?.pointsFor || 0) - (a.stats?.pointsAgainst || 0);
+        const bDiff = (b.stats?.pointsFor || 0) - (b.stats?.pointsAgainst || 0);
+        return bDiff - aDiff;
+      });
+
+    ctx.body = teams;
     
-    // For now, return mock statistical data
-    // In production, this would query actual player statistics
-    const mockStats = generateMockStats(players, teams, category);
-    
-    ctx.body = mockStats;
   } catch (error) {
+    console.error('Error fetching team rankings:', error);
     ctx.status = 404;
-    ctx.body = { error: "Statistical leaders not found" };
+    ctx.body = { error: "Rankings not found" };
   }
 });
 
-// Get player details
-router.get("/league/players/:playerId", async (ctx) => {
-  const { playerId } = ctx.params;
-  const leagueId = "3418359"; // Default league ID
-  
-  try {
-    const player = await MaddenDB.getPlayer(leagueId, playerId);
-    const teams = await MaddenDB.getLatestTeams(leagueId);
-    const team = teams.getTeamForId(player.teamId);
-    
-    const playerStats = await MaddenDB.getPlayerStats(leagueId, player);
-    
-    ctx.body = {
-      ...player,
-      teamName: team.displayName,
-      stats: playerStats
-    };
-  } catch (error) {
-    ctx.status = 404;
-    ctx.body = { error: "Player not found" };
-  }
-});
-
-// Get team details
-router.get("/league/teams/:teamId", async (ctx) => {
+/**
+ * GET /api/vfl/teams/:teamId
+ * Returns detailed information about a specific team
+ * Perfect for team-focused pages and detailed views
+ */
+router.get("/teams/:teamId", async (ctx) => {
   const { teamId } = ctx.params;
-  const leagueId = "3418359"; // Default league ID
   
   try {
-    const teams = await MaddenDB.getLatestTeams(leagueId);
-    const team = teams.getTeamForId(parseInt(teamId));
-    const standing = await MaddenDB.getStandingForTeam(leagueId, parseInt(teamId));
+    const teamDoc = await db.collection('vfl_teams').doc(teamId).get();
     
-    // Get team roster
-    const roster = await MaddenDB.getPlayers(leagueId, { teamId: parseInt(teamId) }, 100);
+    if (!teamDoc.exists) {
+      ctx.status = 404;
+      ctx.body = { error: "Team not found" };
+      return;
+    }
+
+    const team = { id: teamDoc.id, ...teamDoc.data() };
     
+    // Get team's recent games
+    const recentGamesSnapshot = await db.collection('vfl_games')
+      .where('homeTeamName', '==', team.name)
+      .orderBy('gameDate', 'desc')
+      .limit(5)
+      .get();
+    
+    const awayGamesSnapshot = await db.collection('vfl_games')
+      .where('awayTeamName', '==', team.name)
+      .orderBy('gameDate', 'desc')
+      .limit(5)
+      .get();
+
+    // Combine and sort recent games
+    const allGames = [];
+    [...recentGamesSnapshot.docs, ...awayGamesSnapshot.docs].forEach(doc => {
+      allGames.push({
+        id: doc.id,
+        ...doc.data(),
+        gameDate: doc.data().gameDate.toDate()
+      });
+    });
+
+    const recentGames = allGames
+      .sort((a, b) => b.gameDate.getTime() - a.gameDate.getTime())
+      .slice(0, 5);
+
     ctx.body = {
       ...team,
-      standing,
-      roster
+      recentGames
     };
+    
   } catch (error) {
+    console.error('Error fetching team details:', error);
     ctx.status = 404;
     ctx.body = { error: "Team not found" };
   }
 });
 
-// Helper function to generate mock statistical data
-function generateMockStats(players: Player[], teams: any, category: string) {
-  const playersWithTeams = players.slice(0, 20).map(player => {
-    const team = teams.getTeamForId(player.teamId);
-    return {
-      ...player,
-      teamName: team.displayName
-    };
-  });
+/**
+ * GET /api/vfl/stats/leaders/:category
+ * Returns statistical leaders for a specific category
+ * The bread and butter for stat enthusiasts
+ */
+router.get("/stats/leaders/:category", async (ctx) => {
+  const { category } = ctx.params;
+  const limit = parseInt(ctx.query.limit as string) || 20;
+  
+  try {
+    // This is a simplified version - in a real implementation, you'd have
+    // a more sophisticated stats tracking system
+    const playersSnapshot = await db.collection('vfl_players')
+      .limit(limit * 2) // Get more than we need for filtering
+      .get();
 
-  // Add mock statistical values based on category
-  return playersWithTeams.map(player => {
-    switch (category) {
-      case 'passing':
-        return {
-          ...player,
-          passingYards: Math.floor(Math.random() * 3000) + 1000,
-          touchdowns: Math.floor(Math.random() * 25) + 5,
-          interceptions: Math.floor(Math.random() * 10) + 1
-        };
-      case 'rushing':
-        return {
-          ...player,
-          rushingYards: Math.floor(Math.random() * 1200) + 300,
-          touchdowns: Math.floor(Math.random() * 15) + 2,
-          attempts: Math.floor(Math.random() * 200) + 50
-        };
-      case 'receiving':
-        return {
-          ...player,
-          receivingYards: Math.floor(Math.random() * 1000) + 200,
-          receptions: Math.floor(Math.random() * 80) + 20,
-          touchdowns: Math.floor(Math.random() * 12) + 1
-        };
-      case 'defensive':
-        return {
-          ...player,
-          tackles: Math.floor(Math.random() * 100) + 30,
-          sacks: Math.floor(Math.random() * 15) + 1,
-          interceptions: Math.floor(Math.random() * 8) + 0
-        };
-      default:
-        return player;
+    let players = playersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    // Filter and sort based on category
+    // This is mock data - you'd implement real stat tracking
+    players = players
+      .filter(player => player.stats && player.stats[category])
+      .sort((a, b) => (b.stats[category] || 0) - (a.stats[category] || 0))
+      .slice(0, limit)
+      .map(player => ({
+        ...player,
+        statValue: player.stats[category] || 0
+      }));
+
+    ctx.body = players;
+    
+  } catch (error) {
+    console.error('Error fetching stat leaders:', error);
+    ctx.status = 404;
+    ctx.body = { error: "Statistical leaders not found" };
+  }
+});
+
+/**
+ * GET /api/vfl/players/:playerId
+ * Returns detailed player information
+ * For when you want to dive deep into a player's profile
+ */
+router.get("/players/:playerId", async (ctx) => {
+  const { playerId } = ctx.params;
+  
+  try {
+    const playerDoc = await db.collection('vfl_players').doc(playerId).get();
+    
+    if (!playerDoc.exists) {
+      ctx.status = 404;
+      ctx.body = { error: "Player not found" };
+      return;
     }
-  }).sort((a, b) => {
-    // Sort by primary stat for each category
-    switch (category) {
-      case 'passing':
-        return (b as any).passingYards - (a as any).passingYards;
-      case 'rushing':
-        return (b as any).rushingYards - (a as any).rushingYards;
-      case 'receiving':
-        return (b as any).receivingYards - (a as any).receivingYards;
-      case 'defensive':
-        return (b as any).tackles - (a as any).tackles;
-      default:
-        return 0;
+
+    const player = { id: playerDoc.id, ...playerDoc.data() };
+    
+    // Get player's team information
+    if (player.teamId) {
+      const teamDoc = await db.collection('vfl_teams').doc(player.teamId).get();
+      if (teamDoc.exists) {
+        player.team = teamDoc.data();
+      }
     }
-  });
-}
+
+    ctx.body = player;
+    
+  } catch (error) {
+    console.error('Error fetching player details:', error);
+    ctx.status = 404;
+    ctx.body = { error: "Player not found" };
+  }
+});
+
+/**
+ * GET /api/vfl/games/:gameId
+ * Returns detailed game information including stats
+ * Perfect for game breakdown pages
+ */
+router.get("/games/:gameId", async (ctx) => {
+  const { gameId } = ctx.params;
+  
+  try {
+    const gameDoc = await db.collection('vfl_games').doc(gameId).get();
+    
+    if (!gameDoc.exists) {
+      ctx.status = 404;
+      ctx.body = { error: "Game not found" };
+      return;
+    }
+
+    const game = {
+      id: gameDoc.id,
+      ...gameDoc.data(),
+      gameDate: gameDoc.data().gameDate.toDate()
+    };
+
+    ctx.body = game;
+    
+  } catch (error) {
+    console.error('Error fetching game details:', error);
+    ctx.status = 404;
+    ctx.body = { error: "Game not found" };
+  }
+});
+
+/**
+ * GET /api/vfl/health
+ * Health check endpoint for monitoring
+ * Useful for ensuring our API is running smoothly
+ */
+router.get("/health", async (ctx) => {
+  try {
+    // Test database connection
+    await db.collection('vfl_config').limit(1).get();
+    
+    ctx.body = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0'
+    };
+    
+  } catch (error) {
+    ctx.status = 503;
+    ctx.body = {
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
+  }
+});
 
 export default router;
