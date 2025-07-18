@@ -8,11 +8,14 @@ import twitchRouter from "./twitch-notifier/routes"
 import connectionsRouter from "./connections/routes"
 import debugRouter from "./debug/routes"
 import dashboard from "./dashboard/routes"
+import webApiRouter from "./web/routes/api"
+import webAdminRouter from "./web/routes/admin"
 
 const app = new Koa()
 
 app
   .use(serve(path.join(__dirname, 'public')))
+  .use(serve(path.join(__dirname, 'web/public')))
   .use(bodyParser({ enableTypes: ["json", "form"], encoding: "utf-8", jsonLimit: "100mb" }))
   .use(async (ctx, next) => {
     try {
@@ -36,5 +39,9 @@ app
   .use(debugRouter.allowedMethods())
   .use(dashboard.routes())
   .use(dashboard.allowedMethods())
+  .use(webApiRouter.routes())
+  .use(webApiRouter.allowedMethods())
+  .use(webAdminRouter.routes())
+  .use(webAdminRouter.allowedMethods())
 
 export default app

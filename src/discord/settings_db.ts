@@ -33,6 +33,11 @@ export type TeamAssignment = { discord_user?: UserId, discord_role?: RoleId }
 export type TeamAssignments = { [key: string]: TeamAssignment }
 export type TeamConfiguration = { channel: ChannelId, messageId: MessageId, useRoleUpdates: boolean, assignments: TeamAssignments }
 
+import { NotificationChannels } from "./commands/channel_management"
+
+export type ChannelManagementConfiguration = {
+  notification_channels: NotificationChannels
+}
 
 export type LeagueSettings = {
   commands: {
@@ -42,6 +47,7 @@ export type LeagueSettings = {
     broadcast?: BroadcastConfiguration,
     teams?: TeamConfiguration,
     waitlist?: WaitlistConfiguration,
-    madden_league?: MaddenLeagueConfiguration
+    madden_league?: MaddenLeagueConfiguration,
+    channel_management?: ChannelManagementConfiguration
   }
 }

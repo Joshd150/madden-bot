@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snallabot Madden League</title>
+    <meta name="description" content="Professional Madden franchise league with advanced statistics, real-time updates, and competitive gameplay.">
+    <meta name="keywords" content="Madden, NFL, franchise, league, discord bot, statistics">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://snallabot.me/">
+    <meta property="og:title" content="Snallabot Madden League">
+    <meta property="og:description" content="Join our competitive Madden franchise league with advanced statistics and real-time updates.">
+    <meta property="og:image" content="https://snallabot.me/assets/og-image.jpg">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://snallabot.me/">
+    <meta property="twitter:title" content="Snallabot Madden League">
+    <meta property="twitter:description" content="Join our competitive Madden franchise league with advanced statistics and real-time updates.">
+    <meta property="twitter:image" content="https://snallabot.me/assets/og-image.jpg">
+
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-brand">
+                <img src="/assets/logo.png" alt="Snallabot" class="logo">
+                <span class="brand-text">Snallabot League</span>
+            </div>
+            <div class="nav-links">
+                <a href="#standings" class="nav-link">Standings</a>
+                <a href="#stats" class="nav-link">Statistics</a>
+                <a href="#teams" class="nav-link">Teams</a>
+                <a href="/admin" class="nav-link admin-link">Admin Portal</a>
+            </div>
+            <div class="nav-mobile">
+                <button class="mobile-menu-btn" id="mobileMenuBtn">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1 class="hero-title">Elite Madden Franchise League</h1>
+                <p class="hero-subtitle">Experience competitive Madden gameplay with advanced statistics, real-time updates, and professional league management.</p>
+                <div class="hero-actions">
+                    <a href="#join" class="btn btn-primary">Join League</a>
+                    <a href="#standings" class="btn btn-secondary">View Standings</a>
+                </div>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalGames">0</div>
+                    <div class="stat-label">Games Played</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeTeams">0</div>
+                    <div class="stat-label">Active Teams</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="currentWeek">0</div>
+                    <div class="stat-label">Current Week</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Standings Section -->
+        <section id="standings" class="section">
+            <div class="container">
+                <h2 class="section-title">League Standings</h2>
+                <div class="standings-container">
+                    <div class="conference-standings">
+                        <h3>AFC Conference</h3>
+                        <div class="standings-table" id="afcStandings">
+                            <div class="loading">Loading AFC standings...</div>
+                        </div>
+                    </div>
+                    <div class="conference-standings">
+                        <h3>NFC Conference</h3>
+                        <div class="standings-table" id="nfcStandings">
+                            <div class="loading">Loading NFC standings...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Statistics Section -->
+        <section id="stats" class="section bg-gray">
+            <div class="container">
+                <h2 class="section-title">League Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-category">
+                        <h3>Passing Leaders</h3>
+                        <div class="stat-list" id="passingLeaders">
+                            <div class="loading">Loading passing stats...</div>
+                        </div>
+                    </div>
+                    <div class="stat-category">
+                        <h3>Rushing Leaders</h3>
+                        <div class="stat-list" id="rushingLeaders">
+                            <div class="loading">Loading rushing stats...</div>
+                        </div>
+                    </div>
+                    <div class="stat-category">
+                        <h3>Receiving Leaders</h3>
+                        <div class="stat-list" id="receivingLeaders">
+                            <div class="loading">Loading receiving stats...</div>
+                        </div>
+                    </div>
+                    <div class="stat-category">
+                        <h3>Defensive Leaders</h3>
+                        <div class="stat-list" id="defensiveLeaders">
+                            <div class="loading">Loading defensive stats...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Teams Section -->
+        <section id="teams" class="section">
+            <div class="container">
+                <h2 class="section-title">League Teams</h2>
+                <div class="teams-grid" id="teamsGrid">
+                    <div class="loading">Loading teams...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Join Section -->
+        <section id="join" class="section bg-primary">
+            <div class="container">
+                <div class="join-content">
+                    <h2>Ready to Join?</h2>
+                    <p>Experience the most competitive Madden franchise league with professional management and advanced statistics.</p>
+                    <div class="join-features">
+                        <div class="feature">
+                            <div class="feature-icon">🏆</div>
+                            <div class="feature-text">
+                                <h4>Competitive Play</h4>
+                                <p>Face skilled opponents in structured seasons</p>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon">📊</div>
+                            <div class="feature-text">
+                                <h4>Advanced Stats</h4>
+                                <p>Detailed analytics and performance tracking</p>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon">🤖</div>
+                            <div class="feature-text">
+                                <h4>Bot Integration</h4>
+                                <p>Automated league management and updates</p>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="https://discord.gg/your-invite" class="btn btn-white">Join Discord Server</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="/assets/logo.png" alt="Snallabot" class="footer-logo">
+                    <span>Snallabot League</span>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/terms">Terms of Service</a>
+                    <a href="https://github.com/snallabot/snallabot-service">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Snallabot. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/scripts/main.js"></script>
+</body>
+</html>
